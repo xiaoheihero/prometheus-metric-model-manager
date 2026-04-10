@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= isEdit ? '编辑指标' : '手动添加指标' %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .label-row td {
+            vertical-align: middle;
+        }
+        
+        .label-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        #labelsTable td {
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: default;
+            position: relative;
+        }
+        
+        #labelsTable td[data-title]:hover::after {
+            content: attr(data-title);
+            position: absolute;
+            left: 0;
+            top: 100%;
+            z-index: 1000;
+            background-color: #333;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            white-space: normal;
+            max-width: 300px;
+            word-wrap: break-word;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <div class="container">
+            <ul>
+                <li><a href="/">首页</a></li>
+                <li><a href="/datasources">数据源</a></li>
+                <li><a href="/metrics">指标</a></li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h1><%= isEdit ? '编辑指标: ' + metric.name : '手动添加指标' %></h1>
+        
+        <% if (isEdit) { %>
+        <div class="mb-20">
+            <button type="button" class="button" onclick="previewMetric()">预览</button>
+            <button type="button" class="button success ml-10" onclick="exportMetric()">导出Markdown</button>
+        </div>
+        <% } %>
+        
+        <form id="metricForm">
+            <div class="card">
+                <h2>指标信息</h2>
+                <% if (isEdit) { %>
+                <input type="hidden" id="metricId" value="<%= metric.id %>">
+                <% } else { %>
+                <div class="form-group">
+                    <label for="metricName">指标名称 *</label>
+                    <input type="text" id="metricName" name="metricName" placeholder="输入指标名称" required>
+                </div>
+                <% } %>
+                <div class="form-group">
+                    <label for="description">描述</label>
+                    <textarea id="description" name="description" rows="3" placeholder="输入指标描述"><%= isEdit && metric ? (metric.description || '') : '' %></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="collector">采集器</label>
+                    <input type="text" id="collector" name="collector" value="<%= isEdit && metric ? (metric.collector || '') : '' %>" placeholder="输入采集器">
+                </div>
+                <div class="form-group">
+                    <label for="owner">责任人</label>
+                    <input type="text" id="owner" name="owner" value="<%= isEdit && metric ? (metric.owner || '') : '' %>" placeholder="输入责任人">
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>标签信息</h2>
+                <div class="mb-20">
+                    <button type="button" class="button" onclick="openAddModal()">添加标签</button>
+                </div>
+                <table id="labelsTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 15%;">标签名称</th>
+                            <th style="width: 10%;">值类型</th>
+                            <th style="width: 15%;">取值范围</th>
+                            <th style="width: 20%;">描述</th>
+                            <th style="width: 15%;">示例</th>
+                            <th style="width: 20%;">采集说明</th>
+                            <th style="width: 5%;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="labelsBody">
+                        <% if (isEdit && labels) { %>
+                            <% labels.forEach(label => { %>
+                            <tr class="label-row" data-id="<%= label.id %>">
+                                <td data-title="<%= label.name %>"><%= label.name %></td>
+                                <td data-title="<%= label.value_type || '' %>"><%= label.value_type || '' %></td>
+                                <td data-title="<%= label.value_range || '' %>"><%= label.value_range || '' %></td>
+                                <td data-title="<%= label.description || '' %>"><%= label.description || '' %></td>
+                                <td data-title="<%= label.example || '' %>"><%= label.example || '' %></td>
+                                <td data-title="<%= label.collection_note || '' %>"><%= label.collection_note || '' %></td>
+                                <td>
+                                    <div class="label-actions">
+                                        <button type="button" class="button small" onclick="openEditModal(<%= label.id %>, '<%= label.name %>', '<%= label.value_type || '' %>', '<%= label.value_range || '' %>', '<%= label.description || '' %>', '<%= label.example || '' %>', '<%= label.collection_note || '' %>')">编辑</button>
+                                        <button type="button" class="button small danger" onclick="deleteLabel(<%= label.id %>, '<%= label.name %>')">删除</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <% }); %>
+                        <% } %>
+                    </tbody>
+                    <tfoot id="labelsFoot">
+                        <tr style="background-color: #f9f9f9;">
+                            <td data-title="数据值"><strong>数据值</strong></td>
+                            <td data-title="数字">数字</td>
+                            <td id="valueLabelValueRange" data-title="<%= isEdit && valueLabel ? (valueLabel.value_range || '') : '' %>"><%= isEdit && valueLabel ? (valueLabel.value_range || '') : '' %></td>
+                            <td id="valueLabelDescription" data-title="<%= isEdit && valueLabel ? (valueLabel.description || '指标的数值') : '指标的数值' %>"><%= isEdit && valueLabel ? (valueLabel.description || '指标的数值') : '指标的数值' %></td>
+                            <td id="valueLabelExample" data-title="<%= isEdit && valueLabel ? (valueLabel.example || '') : '' %>"><%= isEdit && valueLabel ? (valueLabel.example || '') : '' %></td>
+                            <td id="valueLabelCollectionNote" data-title="<%= isEdit && valueLabel ? (valueLabel.collection_note || '') : '' %>"><%= isEdit && valueLabel ? (valueLabel.collection_note || '') : '' %></td>
+                            <td><span style="color: #999; font-size: 12px;">必填</span></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            
+            <div class="mt-20">
+                <input type="submit" value="<%= isEdit ? '更新指标' : '保存指标' %>" class="button success">
+                <a href="/metrics" class="button secondary ml-10">取消</a>
+            </div>
+        </form>
+    </div>
+    
+    <!-- 编辑标签的弹出框 -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>编辑标签</h2>
+            </div>
+            <form id="editForm" onsubmit="submitEditForm(event)">
+                <input type="hidden" id="editLabelId">
+                <div class="form-group">
+                    <label for="editName">标签名称</label>
+                    <input type="text" id="editName" name="editName" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="editValueType">值类型</label>
+                    <select id="editValueType" name="editValueType">
+                        <option value="">选择类型</option>
+                        <option value="string">字符串</option>
+                        <option value="number">数字</option>
+                        <option value="boolean">布尔值</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="editValueRange">取值范围</label>
+                    <input type="text" id="editValueRange" name="editValueRange" placeholder="例如：0-100, true/false 等">
+                </div>
+                <div class="form-group">
+                    <label for="editDescription">描述</label>
+                    <textarea id="editDescription" name="editDescription" rows="3" placeholder="输入此标签代表的含义"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="editExample">示例</label>
+                    <input type="text" id="editExample" name="editExample" placeholder="输入此标签的示例值">
+                </div>
+                <div class="form-group">
+                    <label for="editCollectionNote">采集说明</label>
+                    <textarea id="editCollectionNote" name="editCollectionNote" rows="2" placeholder="输入此标签的采集说明"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <input type="submit" value="保存" class="button success">
+                    <button type="button" class="button secondary ml-10" onclick="closeEditModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 添加标签的弹出框 -->
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>添加标签</h2>
+            </div>
+            <form id="addLabelForm" onsubmit="submitAddLabelForm(event)">
+                <div class="form-group">
+                    <label for="addName">标签名称 *</label>
+                    <input type="text" id="addName" name="addName" placeholder="输入标签名称" required>
+                </div>
+                <div class="form-group">
+                    <label for="addValueType">值类型</label>
+                    <select id="addValueType" name="addValueType">
+                        <option value="">选择类型</option>
+                        <option value="string">字符串</option>
+                        <option value="number">数字</option>
+                        <option value="boolean">布尔值</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="addValueRange">取值范围</label>
+                    <input type="text" id="addValueRange" name="addValueRange" placeholder="例如：0-100, true/false 等">
+                </div>
+                <div class="form-group">
+                    <label for="addDescription">描述</label>
+                    <textarea id="addDescription" name="addDescription" rows="3" placeholder="输入此标签代表的含义"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="addExample">示例</label>
+                    <input type="text" id="addExample" name="addExample" placeholder="输入此标签的示例值">
+                </div>
+                <div class="form-group">
+                    <label for="addCollectionNote">采集说明</label>
+                    <textarea id="addCollectionNote" name="addCollectionNote" rows="2" placeholder="输入此标签的采集说明"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <input type="submit" value="添加" class="button success">
+                    <button type="button" class="button secondary ml-10" onclick="closeAddModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 编辑数据值的弹出框 -->
+    <div id="editValueModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>编辑数据值</h2>
+            </div>
+            <form id="editValueForm" onsubmit="submitEditValueForm(event)">
+                <div class="form-group">
+                    <label for="editValueName">标签名称</label>
+                    <input type="text" id="editValueName" value="数据值" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="editValueValueType">值类型</label>
+                    <input type="text" id="editValueValueType" value="数字" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="editValueValueRange">取值范围</label>
+                    <input type="text" id="editValueValueRange" name="editValueValueRange" placeholder="例如：0-100">
+                </div>
+                <div class="form-group">
+                    <label for="editValueDescription">描述</label>
+                    <textarea id="editValueDescription" name="editValueDescription" rows="3" placeholder="输入此标签代表的含义"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="editValueExample">示例</label>
+                    <input type="text" id="editValueExample" name="editValueExample" placeholder="输入此标签的示例值">
+                </div>
+                <div class="form-group">
+                    <label for="editValueCollectionNote">采集说明</label>
+                    <textarea id="editValueCollectionNote" name="editValueCollectionNote" rows="2" placeholder="输入此标签的采集说明"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <input type="submit" value="保存" class="button success">
+                    <button type="button" class="button secondary ml-10" onclick="closeEditValueModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        const isEdit = <%= isEdit ? 'true' : 'false' %>;
+        const metricId = <%= isEdit && metric ? metric.id : 'null' %>;
+        let labels = [];
+        let labelIdCounter = 0;
+        let currentEditId = null;
+        
+        // HTML转义函数
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        <% if (!isEdit) { %>
+        // 添加模式：初始化标签数组
+        function openEditModal(id) {
+            const label = labels.find(l => l.id === id);
+            if (!label) return;
+            
+            currentEditId = id;
+            document.getElementById('editLabelId').value = id;
+            document.getElementById('editName').value = label.name;
+            document.getElementById('editValueType').value = label.valueType;
+            document.getElementById('editValueRange').value = label.valueRange || '';
+            document.getElementById('editDescription').value = label.description || '';
+            document.getElementById('editExample').value = label.example || '';
+            document.getElementById('editCollectionNote').value = label.collectionNote || '';
+            
+            document.getElementById('editModal').style.display = 'flex';
+        }
+        
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+            currentEditId = null;
+        }
+        
+        function submitEditForm(event) {
+            event.preventDefault();
+            
+            const id = currentEditId;
+            const label = labels.find(l => l.id === id);
+            if (!label) return;
+            
+            label.valueType = document.getElementById('editValueType').value;
+            label.valueRange = document.getElementById('editValueRange').value;
+            label.description = document.getElementById('editDescription').value;
+            label.example = document.getElementById('editExample').value;
+            label.collectionNote = document.getElementById('editCollectionNote').value;
+            
+            updateLabelsTable();
+            closeEditModal();
+        }
+        
+        function openAddModal() {
+            document.getElementById('addLabelForm').reset();
+            document.getElementById('addModal').style.display = 'flex';
+        }
+        
+        function closeAddModal() {
+            document.getElementById('addModal').style.display = 'none';
+        }
+        
+        function submitAddLabelForm(event) {
+            event.preventDefault();
+            
+            labelIdCounter++;
+            const label = {
+                id: labelIdCounter,
+                name: document.getElementById('addName').value,
+                valueType: document.getElementById('addValueType').value,
+                valueRange: document.getElementById('addValueRange').value,
+                description: document.getElementById('addDescription').value,
+                example: document.getElementById('addExample').value,
+                collectionNote: document.getElementById('addCollectionNote').value
+            };
+            
+            labels.push(label);
+            updateLabelsTable();
+            closeAddModal();
+        }
+        
+        function deleteLabel(id, name) {
+            if (confirm(`确定要删除标签 "${name}" 吗？`)) {
+                labels = labels.filter(l => l.id !== id);
+                updateLabelsTable();
+            }
+        }
+        
+        function updateLabelsTable() {
+            const tbody = document.getElementById('labelsBody');
+            tbody.innerHTML = '';
+            
+            labels.forEach(label => {
+                const row = document.createElement('tr');
+                row.className = 'label-row';
+                row.innerHTML = `
+                    <td data-title="${escapeHtml(label.name)}">${escapeHtml(label.name)}</td>
+                    <td data-title="${escapeHtml(label.valueType || '')}">${escapeHtml(label.valueType || '')}</td>
+                    <td data-title="${escapeHtml(label.valueRange || '')}">${escapeHtml(label.valueRange || '')}</td>
+                    <td data-title="${escapeHtml(label.description || '')}">${escapeHtml(label.description || '')}</td>
+                    <td data-title="${escapeHtml(label.example || '')}">${escapeHtml(label.example || '')}</td>
+                    <td data-title="${escapeHtml(label.collectionNote || '')}">${escapeHtml(label.collectionNote || '')}</td>
+                    <td>
+                        <div class="label-actions">
+                            <button type="button" class="button small" onclick="openEditModal(${label.id})">编辑</button>
+                            <button type="button" class="button small danger" onclick="deleteLabel(${label.id}, '${escapeHtml(label.name)}')">删除</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        function openEditValueModal() {
+            document.getElementById('editValueValueRange').value = document.getElementById('valueLabelValueRange').textContent;
+            document.getElementById('editValueDescription').value = document.getElementById('valueLabelDescription').textContent;
+            document.getElementById('editValueExample').value = document.getElementById('valueLabelExample').textContent;
+            document.getElementById('editValueCollectionNote').value = document.getElementById('valueLabelCollectionNote').textContent;
+            
+            document.getElementById('editValueModal').style.display = 'flex';
+        }
+        
+        function closeEditValueModal() {
+            document.getElementById('editValueModal').style.display = 'none';
+        }
+        
+        function submitEditValueForm(event) {
+            event.preventDefault();
+            
+            document.getElementById('valueLabelValueRange').textContent = document.getElementById('editValueValueRange').value;
+            document.getElementById('valueLabelDescription').textContent = document.getElementById('editValueDescription').value || '指标的数值';
+            document.getElementById('valueLabelExample').textContent = document.getElementById('editValueExample').value;
+            document.getElementById('valueLabelCollectionNote').textContent = document.getElementById('editValueCollectionNote').value;
+            
+            closeEditValueModal();
+        }
+        
+        document.getElementById('metricForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const metricName = document.getElementById('metricName').value;
+            const description = document.getElementById('description').value;
+            const collector = document.getElementById('collector').value;
+            const owner = document.getElementById('owner').value;
+            
+            const allLabels = [...labels];
+            
+            allLabels.push({
+                name: '数据值',
+                valueType: 'number',
+                valueRange: document.getElementById('valueLabelValueRange').textContent,
+                description: document.getElementById('valueLabelDescription').textContent,
+                example: document.getElementById('valueLabelExample').textContent,
+                collectionNote: document.getElementById('valueLabelCollectionNote').textContent
+            });
+            
+            fetch('/metrics/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    metricName,
+                    description,
+                    collector,
+                    owner,
+                    labels: allLabels
+                })
+            })
+            .then(response => {
+                return response.json().then(data => {
+                    if (!response.ok) {
+                        throw new Error(data.error || '添加失败');
+                    }
+                    return data;
+                });
+            })
+            .then(data => {
+                showToast('指标添加成功', 'success');
+                setTimeout(() => {
+                    window.location.href = `/metrics/edit/${data.metricId}`;
+                }, 1000);
+            })
+            .catch(error => {
+                console.error('Error adding metric:', error);
+                showToast(error.message || '添加失败', 'error');
+            });
+        });
+        
+        document.getElementById('labelsFoot').addEventListener('click', function(e) {
+            if (e.target.tagName === 'TD' || e.target.tagName === 'STRONG') {
+                openEditValueModal();
+            }
+        });
+        
+        document.getElementById('labelsFoot').style.cursor = 'pointer';
+        <% } else { %>
+        // 编辑模式：使用API操作
+        function openEditModal(id, name, valueType, valueRange, description, example, collectionNote) {
+            currentEditId = id;
+            document.getElementById('editLabelId').value = id;
+            document.getElementById('editName').value = name;
+            document.getElementById('editValueType').value = valueType;
+            document.getElementById('editValueRange').value = valueRange;
+            document.getElementById('editDescription').value = description;
+            document.getElementById('editExample').value = example;
+            document.getElementById('editCollectionNote').value = collectionNote;
+            
+            if (name === '数据值') {
+                document.getElementById('editValueType').value = 'number';
+                document.getElementById('editValueType').disabled = true;
+            } else {
+                document.getElementById('editValueType').disabled = false;
+            }
+            
+            document.getElementById('editModal').style.display = 'flex';
+        }
+        
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+            currentEditId = null;
+        }
+        
+        function submitEditForm(event) {
+            event.preventDefault();
+            
+            const labelId = document.getElementById('editLabelId').value;
+            const data = {
+                labelId: labelId,
+                editValueType: document.getElementById('editValueType').value,
+                editValueRange: document.getElementById('editValueRange').value,
+                editDescription: document.getElementById('editDescription').value,
+                editExample: document.getElementById('editExample').value,
+                editCollectionNote: document.getElementById('editCollectionNote').value
+            };
+            
+            fetch(`/metrics/edit/${metricId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    return response.text().then(text => {
+                        throw new Error(text);
+                    });
+                }
+            })
+            .catch(error => {
+                showToast(error.message || '更新失败', 'error');
+            });
+        }
+        
+        function openAddModal() {
+            document.getElementById('addLabelForm').reset();
+            document.getElementById('addModal').style.display = 'flex';
+        }
+        
+        function closeAddModal() {
+            document.getElementById('addModal').style.display = 'none';
+        }
+        
+        function submitAddLabelForm(event) {
+            event.preventDefault();
+            
+            const data = {
+                addName: document.getElementById('addName').value,
+                addValueType: document.getElementById('addValueType').value,
+                addValueRange: document.getElementById('addValueRange').value,
+                addDescription: document.getElementById('addDescription').value,
+                addExample: document.getElementById('addExample').value,
+                addCollectionNote: document.getElementById('addCollectionNote').value
+            };
+            
+            fetch(`/metrics/add-label/${metricId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    return response.text().then(text => {
+                        throw new Error(text);
+                    });
+                }
+            })
+            .catch(error => {
+                showToast(error.message || '添加失败', 'error');
+            });
+        }
+        
+        function deleteLabel(labelId, labelName) {
+            if (confirm(`确定要删除标签 "${labelName}" 吗？`)) {
+                fetch(`/metrics/delete-label/${labelId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        showToast('删除失败', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error deleting label:', error);
+                    showToast('删除失败: ' + error.message, 'error');
+                });
+            }
+        }
+        
+        function previewMetric() {
+            window.open(`/metrics/preview/${metricId}`, '_blank');
+        }
+        
+        function exportMetric() {
+            window.location.href = `/metrics/export/${metricId}`;
+        }
+        
+        document.getElementById('metricForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const description = document.getElementById('description').value;
+            const collector = document.getElementById('collector').value;
+            const owner = document.getElementById('owner').value;
+            
+            fetch(`/metrics/update-metric/${metricId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: `description=${encodeURIComponent(description)}&collector=${encodeURIComponent(collector)}&owner=${encodeURIComponent(owner)}`
+            })
+            .then(response => {
+                if (response.ok) {
+                    showToast('指标信息更新成功', 'success');
+                } else {
+                    showToast('更新失败', 'error');
+                }
+            })
+            .catch(error => {
+                showToast('更新失败: ' + error.message, 'error');
+            });
+        });
+        <% } %>
+        
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            const messageSpan = document.createElement('span');
+            messageSpan.textContent = message;
+            toast.appendChild(messageSpan);
+            
+            const closeBtn = document.createElement('span');
+            closeBtn.className = 'toast-close';
+            closeBtn.textContent = '×';
+            closeBtn.onclick = () => {
+                toast.style.animation = 'slideUp 0.3s ease-out';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
+            };
+            toast.appendChild(closeBtn);
+            
+            document.body.appendChild(toast);
+            
+            const duration = type === 'success' ? 5000 : 60000;
+            setTimeout(() => {
+                toast.style.animation = 'slideUp 0.3s ease-out';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
+            }, duration);
+        }
+        
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' || event.keyCode === 27) {
+                var editModal = document.getElementById('editModal');
+                var addModal = document.getElementById('addModal');
+                var editValueModal = document.getElementById('editValueModal');
+                if (editModal.style.display === 'flex') {
+                    closeEditModal();
+                }
+                if (addModal.style.display === 'flex') {
+                    closeAddModal();
+                }
+                if (editValueModal && editValueModal.style.display === 'flex') {
+                    closeEditValueModal();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

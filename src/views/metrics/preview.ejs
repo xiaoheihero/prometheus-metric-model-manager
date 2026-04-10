@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= isBatch ? '批量预览指标' : '预览指标: ' + metrics[0].name %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        body {
+            max-width: <%= isBatch ? '1000px' : '900px' %>;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .meta-info {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+        
+        .meta-info p {
+            margin: 12px 0;
+        }
+        
+        .meta-info strong {
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .no-labels {
+            text-align: center;
+            color: #7f8c8d;
+            font-style: italic;
+            padding: 30px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+        
+        .metric-section {
+            margin-bottom: 40px;
+            padding-bottom: 30px;
+            border-bottom: 2px solid #ebeef5;
+        }
+        
+        .metric-section:last-child {
+            border-bottom: none;
+        }
+        
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .metric-header h2 {
+            margin: 0;
+            color: #2c3e50;
+        }
+        
+        .info-table {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        
+        .info-table td {
+            padding: 8px 12px;
+        }
+        
+        .info-table td:first-child {
+            font-weight: 500;
+            width: 120px;
+            background-color: #f9f9f9;
+        }
+        
+        .labels-table th {
+            background-color: #f5f7fa;
+        }
+        
+        table td {
+            max-width: 150px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: default;
+            position: relative;
+        }
+        
+        table td[data-title]:hover::after {
+            content: attr(data-title);
+            position: absolute;
+            left: 0;
+            top: 100%;
+            z-index: 1000;
+            background-color: #333;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            white-space: normal;
+            max-width: 300px;
+            word-wrap: break-word;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <% if (isBatch) { %>
+        <h1>批量预览指标</h1>
+        
+        <div class="mb-20">
+            <span style="color: #666;">共 <strong><%= metrics.length %></strong> 个指标</span>
+            <button onclick="window.print()" class="button ml-20">打印</button>
+        </div>
+        
+        <% metrics.forEach((metric, index) => { %>
+        <div class="metric-section">
+            <div class="metric-header">
+                <h2><%= index + 1 %>. <%= metric.name %></h2>
+            </div>
+            
+            <h3>指标信息</h3>
+            <table class="info-table">
+                <tr>
+                    <td>指标名称</td>
+                    <td><%= metric.name %></td>
+                </tr>
+                <tr>
+                    <td>指标ID</td>
+                    <td><%= metric.id %></td>
+                </tr>
+                <tr>
+                    <td>描述</td>
+                    <td><%= metric.description || '' %></td>
+                </tr>
+                <tr>
+                    <td>采集器</td>
+                    <td><%= metric.collector || '' %></td>
+                </tr>
+                <tr>
+                    <td>责任人</td>
+                    <td><%= metric.owner || '' %></td>
+                </tr>
+                <% if (metric.created_at) { %>
+                <tr>
+                    <td>创建时间</td>
+                    <td><%= metric.created_at %></td>
+                </tr>
+                <% } %>
+            </table>
+            
+            <h3>标签信息</h3>
+            <% if (metric.labels && metric.labels.length > 0) { %>
+            <table class="labels-table">
+                <thead>
+                    <tr>
+                        <th>标签名称</th>
+                        <th>值类型</th>
+                        <th>取值范围</th>
+                        <th>描述</th>
+                        <th>示例</th>
+                        <th>采集说明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% metric.labels.forEach(label => { %>
+                    <tr>
+                        <td data-title="<%= label.name %>"><%= label.name %></td>
+                        <td data-title="<%= label.value_type || '' %>"><%= label.value_type || '' %></td>
+                        <td data-title="<%= label.value_range || '' %>"><%= label.value_range || '' %></td>
+                        <td data-title="<%= label.description || '' %>"><%= label.description || '' %></td>
+                        <td data-title="<%= label.example || '' %>"><%= label.example || '' %></td>
+                        <td data-title="<%= label.collection_note || '' %>"><%= label.collection_note || '' %></td>
+                    </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+            <p style="color: #666; margin-top: 10px;">标签总数: <%= metric.labels.length %></p>
+            <% } else { %>
+            <p style="color: #999;">暂无标签信息</p>
+            <% } %>
+        </div>
+        <% }); %>
+        
+        <% } else { %>
+        <h1><%= metrics[0].name %></h1>
+        
+        <div class="meta-info">
+            <p><strong>描述:</strong> <%= metrics[0].description || '' %></p>
+            <p><strong>采集器:</strong> <%= metrics[0].collector || '' %></p>
+            <p><strong>责任人:</strong> <%= metrics[0].owner || '' %></p>
+        </div>
+        
+        <h2>标签信息</h2>
+        
+        <% if (metrics[0].labels && metrics[0].labels.length > 0) { %>
+        <table>
+            <thead>
+                <tr>
+                    <th>标签名称</th>
+                    <th>值类型</th>
+                    <th>取值范围</th>
+                    <th>描述</th>
+                    <th>示例</th>
+                    <th>采集说明</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% metrics[0].labels.forEach(label => { %>
+                <tr>
+                    <td data-title="<%= label.name %>"><%= label.name %></td>
+                    <td data-title="<%= label.value_type || '' %>"><%= label.value_type || '' %></td>
+                    <td data-title="<%= label.value_range || '' %>"><%= label.value_range || '' %></td>
+                    <td data-title="<%= label.description || '' %>"><%= label.description || '' %></td>
+                    <td data-title="<%= label.example || '' %>"><%= label.example || '' %></td>
+                    <td data-title="<%= label.collection_note || '' %>"><%= label.collection_note || '' %></td>
+                </tr>
+                <% }); %>
+            </tbody>
+        </table>
+        <% } else { %>
+        <div class="no-labels">暂无标签信息</div>
+        <% } %>
+        
+        <div class="mt-20 text-center">
+            <button onclick="window.print()" class="button">打印</button>
+            <a href="/metrics/export/<%= metrics[0].id %>" class="button success ml-10">导出Markdown</a>
+        </div>
+        <% } %>
+    </div>
+</body>
+</html>

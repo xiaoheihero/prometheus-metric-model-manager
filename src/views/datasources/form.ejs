@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= isEdit ? '编辑数据源' : '添加数据源' %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .form-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ebeef5;
+        }
+        
+        .form-section h3 {
+            margin-top: 0;
+            color: #34495e;
+        }
+        
+        .header-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        
+        .header-row input {
+            flex: 1;
+        }
+        
+        #testResult {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+        
+        #testResult.success {
+            display: block;
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        #testResult.error {
+            display: block;
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        input[type="checkbox"] {
+            margin-right: 8px;
+            width: auto;
+        }
+    </style>
+    <script>
+        function testDataSource() {
+            const url = document.getElementById('url').value;
+            const authType = document.getElementById('authType').value;
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const skipTlsVerify = document.getElementById('skipTlsVerify').checked;
+            
+            const headerKeys = [];
+            const headerValues = [];
+            document.querySelectorAll('.header-row').forEach(row => {
+                const key = row.querySelector('input[name="headerKeys[]"]').value;
+                const value = row.querySelector('input[name="headerValues[]"]').value;
+                headerKeys.push(key);
+                headerValues.push(value);
+            });
+            
+            const testResult = document.getElementById('testResult');
+            testResult.innerHTML = '正在测试数据源连接...';
+            testResult.className = '';
+            testResult.style.display = 'block';
+            
+            fetch('/datasources/test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    url,
+                    authType,
+                    username,
+                    password,
+                    headerKeys,
+                    headerValues,
+                    skipTlsVerify
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    testResult.innerHTML = '✓ 测试成功: ' + data.message;
+                    testResult.className = 'success';
+                } else {
+                    testResult.innerHTML = '✗ 测试失败: ' + data.message;
+                    testResult.className = 'error';
+                }
+            })
+            .catch(error => {
+                testResult.innerHTML = '✗ 测试失败: ' + error.message;
+                testResult.className = 'error';
+            });
+        }
+        
+        function addHeaderRow(key = '', value = '') {
+            const container = document.getElementById('headersContainer');
+            const row = document.createElement('div');
+            row.className = 'header-row';
+            row.innerHTML = `
+                <input type="text" name="headerKeys[]" placeholder="Header名称" value="${key}">
+                <input type="text" name="headerValues[]" placeholder="Header值" value="${value}">
+                <button type="button" onclick="removeHeaderRow(this)" class="button small danger">删除</button>
+            `;
+            container.appendChild(row);
+        }
+        
+        function removeHeaderRow(button) {
+            button.parentElement.remove();
+        }
+        
+        function loadHeaders() {
+            <%
+            if (dataSource && dataSource.headers) {
+                let headers = {};
+                try {
+                    headers = typeof dataSource.headers === 'string' ? JSON.parse(dataSource.headers) : dataSource.headers;
+                } catch (e) {
+                    headers = {};
+                }
+            %>
+            const headers = <%- JSON.stringify(dataSource && dataSource.headers ? (typeof dataSource.headers === 'string' ? JSON.parse(dataSource.headers) : dataSource.headers) : {}) %>;
+            const container = document.getElementById('headersContainer');
+            container.innerHTML = '';
+            
+            const entries = Object.entries(headers);
+            if (entries.length > 0) {
+                entries.forEach(([key, value]) => {
+                    addHeaderRow(key, value);
+                });
+            } else {
+                addHeaderRow();
+            }
+            <%
+            } else {
+            %>
+            addHeaderRow();
+            <%
+            }
+            %>
+        }
+        
+        document.addEventListener('DOMContentLoaded', loadHeaders);
+    </script>
+</head>
+<body>
+    <div class="nav">
+        <div class="container">
+            <ul>
+                <li><a href="/">首页</a></li>
+                <li><a href="/datasources">数据源</a></li>
+                <li><a href="/metrics">指标</a></li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h1><%= isEdit ? '编辑数据源' : '添加数据源' %></h1>
+        
+        <div class="card">
+            <form action="<%= isEdit ? '/datasources/edit/' + dataSource.id : '/datasources/add' %>" method="post">
+                <div class="form-group">
+                    <label for="name">名称</label>
+                    <input type="text" id="name" name="name" value="<%= dataSource ? dataSource.name : '' %>" required placeholder="输入数据源名称">
+                </div>
+                <div class="form-group">
+                    <label for="url">URL</label>
+                    <input type="text" id="url" name="url" value="<%= dataSource ? dataSource.url : '' %>" required placeholder="http://prometheus:9090">
+                </div>
+                
+                <div class="form-section">
+                    <h3>认证设置</h3>
+                    <div class="form-group">
+                        <label for="authType">认证类型</label>
+                        <select id="authType" name="authType">
+                            <option value="none" <%= dataSource && dataSource.auth_type === 'none' ? 'selected' : '' %>>无认证</option>
+                            <option value="basic" <%= dataSource && dataSource.auth_type === 'basic' ? 'selected' : '' %>>基本认证</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="username">用户名</label>
+                        <input type="text" id="username" name="username" value="<%= dataSource ? (dataSource.username || '') : '' %>" placeholder="输入用户名">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">密码</label>
+                        <input type="password" id="password" name="password" placeholder="输入密码">
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <h3>HTTP 设置</h3>
+                    <div class="form-group">
+                        <label>自定义 Headers</label>
+                        <div id="headersContainer">
+                            <div class="header-row">
+                                <input type="text" name="headerKeys[]" placeholder="Header名称">
+                                <input type="text" name="headerValues[]" placeholder="Header值">
+                                <button type="button" onclick="removeHeaderRow(this)" class="button small danger">删除</button>
+                            </div>
+                        </div>
+                        <button type="button" onclick="addHeaderRow()" class="button mt-10">添加 Header</button>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="skipTlsVerify" name="skipTlsVerify" <%= dataSource && dataSource.skip_tls_verify == 1 ? 'checked' : '' %>>
+                            跳过 TLS 验证
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="mt-20">
+                    <input type="submit" value="<%= isEdit ? '更新数据源' : '添加数据源' %>" class="button success">
+                    <button type="button" onclick="testDataSource()" class="button success">测试数据源</button>
+                    <a href="/datasources" class="button secondary ml-10">取消</a>
+                    <div id="testResult"></div>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>导入指标</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(102, 126, 234, 0.3);
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        #submitBtn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <div class="container">
+            <ul>
+                <li><a href="/">首页</a></li>
+                <li><a href="/datasources">数据源</a></li>
+                <li><a href="/metrics">指标</a></li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h1>导入指标</h1>
+        
+        <div class="card">
+            <form id="importForm">
+                <div class="form-group">
+                    <label for="dataSourceId">选择数据源</label>
+                    <select id="dataSourceId" name="dataSourceId" required onchange="loadMetrics()">
+                        <option value="">请选择数据源</option>
+                        <% if (dataSources && dataSources.length > 0) { %>
+                            <% dataSources.forEach(dataSource => { %>
+                                <option value="<%= dataSource.id %>"><%= dataSource.name %> (<%= dataSource.url %>)</option>
+                            <% }); %>
+                        <% } %>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="metricName">选择指标</label>
+                    <input type="text" id="metricName" name="metricName" list="metricOptions" required placeholder="输入或选择指标...">
+                    <datalist id="metricOptions"></datalist>
+                    <div id="loading" style="display: none; margin-top: 10px;">
+                        <div class="loading"></div>
+                        <span>正在加载指标...</span>
+                    </div>
+                </div>
+                <div class="mt-20">
+                    <button type="submit" id="submitBtn" class="button success">导入指标</button>
+                    <a href="/metrics" class="button secondary ml-10">取消</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        let originalMetrics = [];
+        
+        function loadMetrics() {
+            const dataSourceId = document.getElementById('dataSourceId').value;
+            const metricInput = document.getElementById('metricName');
+            const metricOptions = document.getElementById('metricOptions');
+            const loading = document.getElementById('loading');
+            
+            if (!dataSourceId) {
+                metricInput.value = '';
+                metricOptions.innerHTML = '';
+                originalMetrics = [];
+                return;
+            }
+            
+            loading.style.display = 'block';
+            metricInput.value = '';
+            metricOptions.innerHTML = '';
+            
+            fetch(`/metrics/datasource/${dataSourceId}/metrics`)
+                .then(response => response.json())
+                .then(data => {
+                    loading.style.display = 'none';
+                    
+                    if (data && data.length > 0) {
+                        originalMetrics = data;
+                        populateMetricOptions(data);
+                    } else {
+                        metricOptions.innerHTML = '';
+                        originalMetrics = [];
+                        showToast('未找到指标', 'error');
+                    }
+                })
+                .catch(error => {
+                    loading.style.display = 'none';
+                    metricOptions.innerHTML = '';
+                    originalMetrics = [];
+                    console.error('Error loading metrics:', error);
+                    showToast(`加载指标失败: ${error.message || 'Unknown error'}`, 'error');
+                });
+        }
+        
+        function populateMetricOptions(metrics) {
+            const metricOptions = document.getElementById('metricOptions');
+            metricOptions.innerHTML = '';
+            
+            metrics.forEach(metric => {
+                const option = document.createElement('option');
+                option.value = metric;
+                option.textContent = metric;
+                metricOptions.appendChild(option);
+            });
+        }
+        
+        document.getElementById('metricName').addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            
+            if (!searchTerm) {
+                populateMetricOptions(originalMetrics);
+                return;
+            }
+            
+            const filteredMetrics = originalMetrics.filter(metric => 
+                metric.toLowerCase().includes(searchTerm)
+            );
+            
+            populateMetricOptions(filteredMetrics);
+        });
+        
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            const messageSpan = document.createElement('span');
+            messageSpan.textContent = message;
+            toast.appendChild(messageSpan);
+            
+            const closeBtn = document.createElement('span');
+            closeBtn.className = 'toast-close';
+            closeBtn.textContent = '×';
+            closeBtn.onclick = () => {
+                toast.style.animation = 'slideUp 0.3s ease-out';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
+            };
+            toast.appendChild(closeBtn);
+            
+            document.body.appendChild(toast);
+            
+            const duration = type === 'success' ? 5000 : 60000;
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideUp 0.3s ease-out';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
+            }, duration);
+        }
+        
+        document.getElementById('importForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const dataSourceId = document.getElementById('dataSourceId').value;
+            const metricName = document.getElementById('metricName').value;
+            
+            if (!dataSourceId || !metricName) {
+                showToast('请选择数据源和指标', 'error');
+                return;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = '导入中...';
+            
+            fetch('/metrics/import', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ dataSourceId, metricName })
+            })
+            .then(response => {
+                return response.json().then(data => {
+                    if (!response.ok) {
+                        throw new Error(data.error || '导入失败');
+                    }
+                    return data;
+                });
+            })
+            .then(data => {
+                showToast(data.message || `指标导入成功，共导入 ${data.labelCount} 个标签`, 'success');
+                setTimeout(() => {
+                    window.location.href = data.redirectUrl;
+                }, 1000);
+            })
+            .catch(error => {
+                console.error('Error importing metric:', error);
+                showToast(error.message || '导入失败', 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '导入指标';
+            });
+        });
+    </script>
+</body>
+</html>

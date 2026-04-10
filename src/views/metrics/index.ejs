@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>指标</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .batch-actions {
+            display: none;
+            padding: 10px 15px;
+            background-color: #e7f4ff;
+            border: 1px solid #b3d8ff;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .batch-actions.show {
+            display: flex;
+        }
+        
+        .batch-actions .selected-count {
+            font-weight: 500;
+            color: #409eff;
+        }
+        
+        .checkbox-cell {
+            width: 40px;
+            text-align: center;
+        }
+        
+        .checkbox-cell input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 6px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .pagination-info {
+            color: #666;
+        }
+        
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .pagination-controls label {
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+        }
+        
+        .page-info {
+            padding: 0 10px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <div class="container">
+            <ul>
+                <li><a href="/">首页</a></li>
+                <li><a href="/datasources">数据源</a></li>
+                <li><a href="/metrics">指标</a></li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h1>指标</h1>
+        
+        <div class="card">
+            <h2>指标列表</h2>
+            <div class="mb-20">
+                <a href="/metrics/import" class="button">导入指标</a>
+                <a href="/metrics/add" class="button ml-10">手动添加</a>
+            </div>
+            <div class="card" style="padding: 15px;">
+                <h3>搜索指标</h3>
+                <form action="/metrics" method="get" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+                    <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+                        <label for="name">指标名称</label>
+                        <input type="text" id="name" name="name" placeholder="输入指标名称" value="<%= searchName %>">
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+                        <label for="collector">采集器</label>
+                        <input type="text" id="collector" name="collector" placeholder="输入采集器" value="<%= searchCollector %>">
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+                        <label for="owner">责任人</label>
+                        <input type="text" id="owner" name="owner" placeholder="输入责任人" value="<%= searchOwner %>">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <input type="submit" value="搜索" class="button success">
+                        <a href="/metrics" class="button secondary ml-10">重置</a>
+                    </div>
+                </form>
+            </div>
+            
+            <div id="batchActions" class="batch-actions">
+                <span class="selected-count">已选择 <span id="selectedCount">0</span> 个指标</span>
+                <button type="button" class="button small success" onclick="batchExport()">批量导出</button>
+                <button type="button" class="button small" onclick="batchPreview()">批量预览</button>
+                <button type="button" class="button small danger" onclick="batchDelete()">批量删除</button>
+                <button type="button" class="button small secondary" onclick="clearSelection()">取消选择</button>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th class="checkbox-cell">
+                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                        </th>
+                        <th>ID</th>
+                        <th>名称</th>
+                        <th>描述</th>
+                        <th>采集器</th>
+                        <th>责任人</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (metrics && metrics.length > 0) { %>
+                        <% metrics.forEach(metric => { %>
+                            <tr data-id="<%= metric.id %>">
+                                <td class="checkbox-cell">
+                                    <input type="checkbox" class="metric-checkbox" value="<%= metric.id %>" onchange="updateBatchActions()">
+                                </td>
+                                <td><%= metric.id %></td>
+                                <td><%= metric.name %></td>
+                                <td><%= metric.description || '' %></td>
+                                <td><%= metric.collector || '' %></td>
+                                <td><%= metric.owner || '' %></td>
+                                <td>
+                                    <a href="/metrics/edit/<%= metric.id %>" class="button small">编辑</a>
+                                    <a href="/metrics/preview/<%= metric.id %>" class="button small ml-5" target="_blank">预览</a>
+                                    <a href="/metrics/export/<%= metric.id %>" class="button small success ml-5">导出</a>
+                                    <a href="/metrics/delete/<%= metric.id %>" class="button small danger ml-5" onclick="return confirm('确定要删除这个指标吗？');">删除</a>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    <% } else { %>
+                        <tr>
+                            <td colspan="7" style="text-align: center;">暂无指标，请导入指标</td>
+                        </tr>
+                    <% } %>
+                </tbody>
+            </table>
+            
+            <% if (totalPages > 1) { %>
+            <div class="pagination">
+                <div class="pagination-info">
+                    共 <%= total %> 条记录，第 <%= currentPage %> / <%= totalPages %> 页
+                </div>
+                <div class="pagination-controls">
+                    <label style="margin-right: 10px;">
+                        每页
+                        <select id="pageSize" onchange="changePageSize()" style="margin: 0 5px;">
+                            <option value="10" <%= pageSize == 10 ? 'selected' : '' %>>10</option>
+                            <option value="20" <%= pageSize == 20 ? 'selected' : '' %>>20</option>
+                            <option value="50" <%= pageSize == 50 ? 'selected' : '' %>>50</option>
+                            <option value="100" <%= pageSize == 100 ? 'selected' : '' %>>100</option>
+                        </select>
+                        条
+                    </label>
+                    
+                    <% if (currentPage > 1) { %>
+                        <a href="?page=1&pageSize=<%= pageSize %><%= searchName ? '&name=' + encodeURIComponent(searchName) : '' %><%= searchCollector ? '&collector=' + encodeURIComponent(searchCollector) : '' %><%= searchOwner ? '&owner=' + encodeURIComponent(searchOwner) : '' %>" class="button small">首页</a>
+                        <a href="?page=<%= currentPage - 1 %>&pageSize=<%= pageSize %><%= searchName ? '&name=' + encodeURIComponent(searchName) : '' %><%= searchCollector ? '&collector=' + encodeURIComponent(searchCollector) : '' %><%= searchOwner ? '&owner=' + encodeURIComponent(searchOwner) : '' %>" class="button small">上一页</a>
+                    <% } %>
+                    
+                    <span class="page-info"><%= currentPage %> / <%= totalPages %></span>
+                    
+                    <% if (currentPage < totalPages) { %>
+                        <a href="?page=<%= currentPage + 1 %>&pageSize=<%= pageSize %><%= searchName ? '&name=' + encodeURIComponent(searchName) : '' %><%= searchCollector ? '&collector=' + encodeURIComponent(searchCollector) : '' %><%= searchOwner ? '&owner=' + encodeURIComponent(searchOwner) : '' %>" class="button small">下一页</a>
+                        <a href="?page=<%= totalPages %>&pageSize=<%= pageSize %><%= searchName ? '&name=' + encodeURIComponent(searchName) : '' %><%= searchCollector ? '&collector=' + encodeURIComponent(searchCollector) : '' %><%= searchOwner ? '&owner=' + encodeURIComponent(searchOwner) : '' %>" class="button small">末页</a>
+                    <% } %>
+                </div>
+            </div>
+            <% } %>
+        </div>
+    </div>
+    
+    <script>
+        function changePageSize() {
+            const pageSize = document.getElementById('pageSize').value;
+            let url = '?page=1&pageSize=' + pageSize;
+            const searchName = '<%= searchName %>';
+            const searchCollector = '<%= searchCollector %>';
+            const searchOwner = '<%= searchOwner %>';
+            if (searchName) {
+                url += '&name=' + encodeURIComponent(searchName);
+            }
+            if (searchCollector) {
+                url += '&collector=' + encodeURIComponent(searchCollector);
+            }
+            if (searchOwner) {
+                url += '&owner=' + encodeURIComponent(searchOwner);
+            }
+            window.location.href = url;
+        }
+        
+        function getSelectedIds() {
+            const checkboxes = document.querySelectorAll('.metric-checkbox:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+        
+        function updateBatchActions() {
+            const selectedIds = getSelectedIds();
+            const batchActions = document.getElementById('batchActions');
+            const selectedCount = document.getElementById('selectedCount');
+            const selectAll = document.getElementById('selectAll');
+            
+            selectedCount.textContent = selectedIds.length;
+            
+            if (selectedIds.length > 0) {
+                batchActions.classList.add('show');
+            } else {
+                batchActions.classList.remove('show');
+            }
+            
+            const allCheckboxes = document.querySelectorAll('.metric-checkbox');
+            selectAll.checked = selectedIds.length > 0 && selectedIds.length === allCheckboxes.length;
+        }
+        
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.metric-checkbox');
+            
+            checkboxes.forEach(cb => {
+                cb.checked = selectAll.checked;
+            });
+            
+            updateBatchActions();
+        }
+        
+        function clearSelection() {
+            const checkboxes = document.querySelectorAll('.metric-checkbox');
+            const selectAll = document.getElementById('selectAll');
+            
+            checkboxes.forEach(cb => {
+                cb.checked = false;
+            });
+            selectAll.checked = false;
+            
+            updateBatchActions();
+        }
+        
+        function batchDelete() {
+            const selectedIds = getSelectedIds();
+            
+            if (selectedIds.length === 0) {
+                alert('请先选择要删除的指标');
+                return;
+            }
+            
+            if (!confirm(`确定要删除选中的 ${selectedIds.length} 个指标吗？此操作不可恢复。`)) {
+                return;
+            }
+            
+            fetch('/metrics/batch-delete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ ids: selectedIds })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`成功删除 ${data.deletedCount} 个指标`);
+                    window.location.reload();
+                } else {
+                    alert('删除失败: ' + (data.error || '未知错误'));
+                }
+            })
+            .catch(error => {
+                alert('删除失败: ' + error.message);
+            });
+        }
+        
+        function batchExport() {
+            const selectedIds = getSelectedIds();
+            
+            if (selectedIds.length === 0) {
+                alert('请先选择要导出的指标');
+                return;
+            }
+            
+            window.location.href = '/metrics/batch-export?ids=' + selectedIds.join(',');
+        }
+        
+        function batchPreview() {
+            const selectedIds = getSelectedIds();
+            
+            if (selectedIds.length === 0) {
+                alert('请先选择要预览的指标');
+                return;
+            }
+            
+            window.open('/metrics/batch-preview?ids=' + selectedIds.join(','), '_blank');
+        }
+    </script>
+</body>
+</html>

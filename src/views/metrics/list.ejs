@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>指标 - <%= dataSource.name %></title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .nav {
+            background-color: #333;
+            color: white;
+            padding: 10px 0;
+            margin-bottom: 20px;
+        }
+        .nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .nav ul li {
+            display: inline;
+            margin-right: 20px;
+        }
+        .nav ul li a {
+            color: white;
+            text-decoration: none;
+        }
+        .card {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #333;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        .button:hover {
+            background-color: #555;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <div class="container">
+            <ul>
+                <li><a href="/">首页</a></li>
+                <li><a href="/datasources">数据源</a></li>
+                <li><a href="/metrics">指标</a></li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h1><%= dataSource.name %> 的指标</h1>
+        
+        <div class="card">
+            <a href="/metrics/import/<%= dataSource.id %>" class="button">导入指标</a>
+            <a href="/metrics" class="button">返回数据源</a>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>指标名称</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% metrics.forEach(metric => { %>
+                    <tr>
+                        <td><%= metric.id %></td>
+                        <td><%= metric.name %></td>
+                        <td>
+                            <a href="/metrics/edit/<%= metric.id %>" class="button">编辑标签</a>
+                        </td>
+                    </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
