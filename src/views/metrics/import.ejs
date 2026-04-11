@@ -25,6 +25,135 @@
             opacity: 0.6;
             cursor: not-allowed;
         }
+        
+        .metric-select-wrapper {
+            position: relative;
+        }
+        
+        .metric-select-trigger {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 14px;
+            border: 2px solid #dcdfe6;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            background-color: #fff;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .metric-select-trigger:hover {
+            border-color: #c0c4cc;
+        }
+        
+        .metric-select-trigger.active {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .metric-select-trigger .placeholder {
+            color: #a0aec0;
+        }
+        
+        .metric-select-trigger .selected-value {
+            color: #2c3e50;
+        }
+        
+        .metric-select-trigger .arrow {
+            transition: transform 0.3s ease;
+        }
+        
+        .metric-select-trigger.active .arrow {
+            transform: rotate(180deg);
+        }
+        
+        .metric-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 4px;
+            background-color: #fff;
+            border: 2px solid #dcdfe6;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            display: none;
+        }
+        
+        .metric-dropdown.show {
+            display: block;
+        }
+        
+        .metric-dropdown-search {
+            padding: 12px;
+            border-bottom: 1px solid #ebeef5;
+        }
+        
+        .metric-dropdown-search input {
+            width: 100%;
+            padding: 10px 14px;
+            font-size: 14px;
+            border: 2px solid #dcdfe6;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            background-color: #fff;
+        }
+        
+        .metric-dropdown-search input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .metric-dropdown-search input::placeholder {
+            color: #a0aec0;
+        }
+        
+        .metric-dropdown-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .metric-dropdown-option {
+            padding: 10px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .metric-dropdown-option:hover {
+            background-color: #f5f7fa;
+        }
+        
+        .metric-dropdown-option.selected {
+            background-color: #667eea;
+            color: #fff;
+        }
+        
+        .metric-dropdown-option:last-child {
+            border-bottom: none;
+        }
+        
+        .metric-dropdown-empty {
+            padding: 20px;
+            text-align: center;
+            color: #a0aec0;
+            font-size: 14px;
+        }
+        
+        .metric-count {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #718096;
+        }
+        
+        .metric-count strong {
+            color: #667eea;
+        }
     </style>
 </head>
 <body>
@@ -55,9 +184,25 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="metricName">选择指标</label>
-                    <input type="text" id="metricName" name="metricName" list="metricOptions" required placeholder="输入或选择指标...">
-                    <datalist id="metricOptions"></datalist>
+                    <label>选择指标</label>
+                    <div class="metric-select-wrapper">
+                        <div id="metricSelectTrigger" class="metric-select-trigger">
+                            <span class="placeholder">请先选择数据源</span>
+                            <span class="arrow">▼</span>
+                        </div>
+                        <div id="metricDropdown" class="metric-dropdown">
+                            <div class="metric-dropdown-search">
+                                <input type="text" id="metricSearchInput" placeholder="搜索指标...">
+                            </div>
+                            <div id="metricDropdownList" class="metric-dropdown-list">
+                                <div class="metric-dropdown-empty">请先选择数据源</div>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="metricName" name="metricName" required>
+                    <div id="metricCount" class="metric-count" style="display: none;">
+                        共 <strong id="metricCountNumber">0</strong> 个指标可选
+                    </div>
                     <div id="loading" style="display: none; margin-top: 10px;">
                         <div class="loading"></div>
                         <span>正在加载指标...</span>
@@ -73,23 +218,103 @@
     
     <script>
         let originalMetrics = [];
+        let selectedMetric = '';
+        
+        // 初始化下拉组件
+        const metricSelectTrigger = document.getElementById('metricSelectTrigger');
+        const metricDropdown = document.getElementById('metricDropdown');
+        const metricSearchInput = document.getElementById('metricSearchInput');
+        const metricDropdownList = document.getElementById('metricDropdownList');
+        const metricNameInput = document.getElementById('metricName');
+        
+        // 点击触发器显示/隐藏下拉框
+        metricSelectTrigger.addEventListener('click', function(e) {
+            e.stopPropagation();
+            toggleDropdown();
+        });
+        
+        // 点击外部区域关闭下拉框
+        document.addEventListener('click', function(e) {
+            if (!metricDropdown.contains(e.target) && !metricSelectTrigger.contains(e.target)) {
+                closeDropdown();
+            }
+        });
+        
+        // 搜索框输入过滤
+        metricSearchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const metricCountNumber = document.getElementById('metricCountNumber');
+            
+            if (!searchTerm) {
+                renderMetricOptions(originalMetrics);
+                metricCountNumber.textContent = originalMetrics.length;
+                return;
+            }
+            
+            const filteredMetrics = originalMetrics.filter(metric => 
+                metric.toLowerCase().includes(searchTerm)
+            );
+            
+            renderMetricOptions(filteredMetrics);
+            metricCountNumber.textContent = filteredMetrics.length;
+        });
+        
+        function toggleDropdown() {
+            const isOpen = metricDropdown.classList.contains('show');
+            if (isOpen) {
+                closeDropdown();
+            } else {
+                openDropdown();
+            }
+        }
+        
+        function openDropdown() {
+            metricDropdown.classList.add('show');
+            metricSelectTrigger.classList.add('active');
+            metricSearchInput.focus();
+        }
+        
+        function closeDropdown() {
+            metricDropdown.classList.remove('show');
+            metricSelectTrigger.classList.remove('active');
+        }
+        
+        function selectMetric(metric) {
+            selectedMetric = metric;
+            metricNameInput.value = metric;
+            
+            const triggerText = metricSelectTrigger.querySelector('span:first-child');
+            triggerText.textContent = metric;
+            triggerText.className = 'selected-value';
+            
+            // 更新选中状态
+            const options = metricDropdownList.querySelectorAll('.metric-dropdown-option');
+            options.forEach(opt => {
+                if (opt.dataset.value === metric) {
+                    opt.classList.add('selected');
+                } else {
+                    opt.classList.remove('selected');
+                }
+            });
+            
+            closeDropdown();
+        }
         
         function loadMetrics() {
             const dataSourceId = document.getElementById('dataSourceId').value;
-            const metricInput = document.getElementById('metricName');
-            const metricOptions = document.getElementById('metricOptions');
             const loading = document.getElementById('loading');
+            const metricCount = document.getElementById('metricCount');
+            const metricCountNumber = document.getElementById('metricCountNumber');
             
             if (!dataSourceId) {
-                metricInput.value = '';
-                metricOptions.innerHTML = '';
-                originalMetrics = [];
+                resetMetricSelect();
                 return;
             }
             
             loading.style.display = 'block';
-            metricInput.value = '';
-            metricOptions.innerHTML = '';
+            metricCount.style.display = 'none';
+            metricSearchInput.value = '';
+            resetMetricSelect();
             
             fetch(`/metrics/datasource/${dataSourceId}/metrics`)
                 .then(response => response.json())
@@ -98,48 +323,71 @@
                     
                     if (data && data.length > 0) {
                         originalMetrics = data;
-                        populateMetricOptions(data);
+                        renderMetricOptions(data);
+                        metricCountNumber.textContent = data.length;
+                        metricCount.style.display = 'block';
+                        
+                        // 更新触发器文本
+                        const triggerText = metricSelectTrigger.querySelector('span:first-child');
+                        triggerText.textContent = '请选择指标';
+                        triggerText.className = 'placeholder';
                     } else {
-                        metricOptions.innerHTML = '';
-                        originalMetrics = [];
+                        renderEmptyState('未找到指标');
+                        metricCount.style.display = 'none';
                         showToast('未找到指标', 'error');
                     }
                 })
                 .catch(error => {
                     loading.style.display = 'none';
-                    metricOptions.innerHTML = '';
-                    originalMetrics = [];
+                    renderEmptyState('加载失败');
+                    metricCount.style.display = 'none';
                     console.error('Error loading metrics:', error);
                     showToast(`加载指标失败: ${error.message || 'Unknown error'}`, 'error');
                 });
         }
         
-        function populateMetricOptions(metrics) {
-            const metricOptions = document.getElementById('metricOptions');
-            metricOptions.innerHTML = '';
+        function resetMetricSelect() {
+            originalMetrics = [];
+            selectedMetric = '';
+            metricNameInput.value = '';
             
-            metrics.forEach(metric => {
-                const option = document.createElement('option');
-                option.value = metric;
-                option.textContent = metric;
-                metricOptions.appendChild(option);
-            });
+            const triggerText = metricSelectTrigger.querySelector('span:first-child');
+            triggerText.textContent = '请先选择数据源';
+            triggerText.className = 'placeholder';
+            
+            renderEmptyState('请先选择数据源');
         }
         
-        document.getElementById('metricName').addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase();
-            
-            if (!searchTerm) {
-                populateMetricOptions(originalMetrics);
+        function renderMetricOptions(metrics) {
+            if (!metrics || metrics.length === 0) {
+                renderEmptyState('无匹配结果');
                 return;
             }
             
-            const filteredMetrics = originalMetrics.filter(metric => 
-                metric.toLowerCase().includes(searchTerm)
-            );
+            metricDropdownList.innerHTML = '';
             
-            populateMetricOptions(filteredMetrics);
-        });
+            metrics.forEach(metric => {
+                const option = document.createElement('div');
+                option.className = 'metric-dropdown-option';
+                option.dataset.value = metric;
+                option.textContent = metric;
+                
+                if (metric === selectedMetric) {
+                    option.classList.add('selected');
+                }
+                
+                option.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    selectMetric(metric);
+                });
+                
+                metricDropdownList.appendChild(option);
+            });
+        }
+        
+        function renderEmptyState(message) {
+            metricDropdownList.innerHTML = `<div class="metric-dropdown-empty">${message}</div>`;
+        }
         
         function showToast(message, type) {
             const toast = document.createElement('div');
@@ -181,7 +429,7 @@
             
             const submitBtn = document.getElementById('submitBtn');
             const dataSourceId = document.getElementById('dataSourceId').value;
-            const metricName = document.getElementById('metricName').value;
+            const metricName = metricNameInput.value;
             
             if (!dataSourceId || !metricName) {
                 showToast('请选择数据源和指标', 'error');

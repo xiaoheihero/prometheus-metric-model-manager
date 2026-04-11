@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= isEdit ? '编辑指标' : '手动添加指标' %></title>
     <link rel="stylesheet" href="/css/style.css">
+    <%
+        // HTML属性转义函数
+        function escapeAttr(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\n/g, '&#10;')
+                .replace(/\r/g, '&#13;');
+        }
+    %>
     <style>
         .label-row td {
             vertical-align: middle;
@@ -24,12 +38,8 @@
             position: relative;
         }
         
-        #labelsTable td[data-title]:hover::after {
-            content: attr(data-title);
+        .tooltip {
             position: absolute;
-            left: 0;
-            top: 100%;
-            z-index: 1000;
             background-color: #333;
             color: #fff;
             padding: 8px 12px;
@@ -39,7 +49,23 @@
             max-width: 300px;
             word-wrap: break-word;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-            margin-top: 4px;
+            z-index: 10000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        
+        .tooltip.show {
+            opacity: 1;
+        }
+        
+        .tooltip::before {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 10px;
+            border: 6px solid transparent;
+            border-bottom-color: #333;
         }
     </style>
 </head>
@@ -110,16 +136,16 @@
                         <% if (isEdit && labels) { %>
                             <% labels.forEach(label => { %>
                             <tr class="label-row" data-id="<%= label.id %>">
-                                <td data-title="<%= label.name %>"><%= label.name %></td>
-                                <td data-title="<%= label.value_type || '' %>"><%= label.value_type || '' %></td>
-                                <td data-title="<%= label.value_range || '' %>"><%= label.value_range || '' %></td>
-                                <td data-title="<%= label.description || '' %>"><%= label.description || '' %></td>
-                                <td data-title="<%= label.example || '' %>"><%= label.example || '' %></td>
-                                <td data-title="<%= label.collection_note || '' %>"><%= label.collection_note || '' %></td>
+                                <td data-title="<%= escapeAttr(label.name) %>"><%= label.name %></td>
+                                <td data-title="<%= escapeAttr(label.value_type || '') %>"><%= label.value_type || '' %></td>
+                                <td data-title="<%= escapeAttr(label.value_range || '') %>"><%= label.value_range || '' %></td>
+                                <td data-title="<%= escapeAttr(label.description || '') %>"><%= label.description || '' %></td>
+                                <td data-title="<%= escapeAttr(label.example || '') %>"><%= label.example || '' %></td>
+                                <td data-title="<%= escapeAttr(label.collection_note || '') %>"><%= label.collection_note || '' %></td>
                                 <td>
                                     <div class="label-actions">
-                                        <button type="button" class="button small" onclick="openEditModal(<%= label.id %>, '<%= label.name %>', '<%= label.value_type || '' %>', '<%= label.value_range || '' %>', '<%= label.description || '' %>', '<%= label.example || '' %>', '<%= label.collection_note || '' %>')">编辑</button>
-                                        <button type="button" class="button small danger" onclick="deleteLabel(<%= label.id %>, '<%= label.name %>')">删除</button>
+                                        <button type="button" class="button small" onclick="openEditModal(<%= label.id %>, '<%= escapeAttr(label.name) %>', '<%= escapeAttr(label.value_type || '') %>', '<%= escapeAttr(label.value_range || '') %>', '<%= escapeAttr(label.description || '') %>', '<%= escapeAttr(label.example || '') %>', '<%= escapeAttr(label.collection_note || '') %>')">编辑</button>
+                                        <button type="button" class="button small danger" onclick="deleteLabel(<%= label.id %>, '<%= escapeAttr(label.name) %>')">删除</button>
                                     </div>
                                 </td>
                             </tr>
@@ -130,10 +156,10 @@
                         <tr style="background-color: #f9f9f9;">
                             <td data-title="数据值"><strong>数据值</strong></td>
                             <td data-title="数字">数字</td>
-                            <td id="valueLabelValueRange" data-title="<%= isEdit && valueLabel ? (valueLabel.value_range || '') : '' %>"><%= isEdit && valueLabel ? (valueLabel.value_range || '') : '' %></td>
-                            <td id="valueLabelDescription" data-title="<%= isEdit && valueLabel ? (valueLabel.description || '指标的数值') : '指标的数值' %>"><%= isEdit && valueLabel ? (valueLabel.description || '指标的数值') : '指标的数值' %></td>
-                            <td id="valueLabelExample" data-title="<%= isEdit && valueLabel ? (valueLabel.example || '') : '' %>"><%= isEdit && valueLabel ? (valueLabel.example || '') : '' %></td>
-                            <td id="valueLabelCollectionNote" data-title="<%= isEdit && valueLabel ? (valueLabel.collection_note || '') : '' %>"><%= isEdit && valueLabel ? (valueLabel.collection_note || '') : '' %></td>
+                            <td id="valueLabelValueRange" data-title="<%= escapeAttr(isEdit && valueLabel ? (valueLabel.value_range || '') : '') %>"><%= isEdit && valueLabel ? (valueLabel.value_range || '') : '' %></td>
+                            <td id="valueLabelDescription" data-title="<%= escapeAttr(isEdit && valueLabel ? (valueLabel.description || '指标的数值') : '指标的数值') %>"><%= isEdit && valueLabel ? (valueLabel.description || '指标的数值') : '指标的数值' %></td>
+                            <td id="valueLabelExample" data-title="<%= escapeAttr(isEdit && valueLabel ? (valueLabel.example || '') : '') %>"><%= isEdit && valueLabel ? (valueLabel.example || '') : '' %></td>
+                            <td id="valueLabelCollectionNote" data-title="<%= escapeAttr(isEdit && valueLabel ? (valueLabel.collection_note || '') : '') %>"><%= isEdit && valueLabel ? (valueLabel.collection_note || '') : '' %></td>
                             <td><span style="color: #999; font-size: 12px;">必填</span></td>
                         </tr>
                     </tfoot>
@@ -663,6 +689,85 @@
                 }, 300);
             }, duration);
         }
+        
+        // Tooltip functionality
+        let currentTooltip = null;
+        
+        function showTooltip(element, content) {
+            if (!content || content.trim() === '') return;
+            
+            // Remove existing tooltip
+            hideTooltip();
+            
+            // Create tooltip element
+            const tooltip = document.createElement('div');
+            tooltip.className = 'tooltip';
+            tooltip.textContent = content;
+            document.body.appendChild(tooltip);
+            
+            // Position tooltip
+            const rect = element.getBoundingClientRect();
+            const tooltipRect = tooltip.getBoundingClientRect();
+            
+            let left = rect.left + window.scrollX;
+            let top = rect.bottom + window.scrollY + 8;
+            
+            // Adjust if tooltip goes beyond right edge
+            if (left + tooltipRect.width > window.innerWidth) {
+                left = window.innerWidth - tooltipRect.width - 10;
+            }
+            
+            // Adjust if tooltip goes beyond bottom edge
+            if (top + tooltipRect.height > window.innerHeight + window.scrollY) {
+                top = rect.top + window.scrollY - tooltipRect.height - 8;
+                tooltip.style.setProperty('--arrow-position', 'bottom');
+            }
+            
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = top + 'px';
+            
+            // Show tooltip with animation
+            setTimeout(() => {
+                tooltip.classList.add('show');
+            }, 10);
+            
+            currentTooltip = tooltip;
+        }
+        
+        function hideTooltip() {
+            if (currentTooltip) {
+                currentTooltip.classList.remove('show');
+                setTimeout(() => {
+                    if (currentTooltip && currentTooltip.parentNode) {
+                        currentTooltip.parentNode.removeChild(currentTooltip);
+                    }
+                    currentTooltip = null;
+                }, 200);
+            }
+        }
+        
+        // Add event listeners for tooltip
+        document.addEventListener('DOMContentLoaded', function() {
+            const table = document.getElementById('labelsTable');
+            if (!table) return;
+            
+            table.addEventListener('mouseover', function(e) {
+                const cell = e.target.closest('td[data-title]');
+                if (cell) {
+                    const content = cell.getAttribute('data-title');
+                    if (content && content.trim() !== '') {
+                        showTooltip(cell, content);
+                    }
+                }
+            });
+            
+            table.addEventListener('mouseout', function(e) {
+                const cell = e.target.closest('td[data-title]');
+                if (cell) {
+                    hideTooltip();
+                }
+            });
+        });
         
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape' || event.keyCode === 27) {
