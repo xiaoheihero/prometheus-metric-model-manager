@@ -1,0 +1,1157 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Prometheus Metric Model Manager API",
+    "description": "Prometheus指标模型管理工具API文档",
+    "version": "1.0.0",
+    "contact": {
+      "name": "API Support"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "本地开发服务器"
+    }
+  ],
+  "tags": [
+    {
+      "name": "数据源管理",
+      "description": "数据源的增删改查和测试"
+    },
+    {
+      "name": "指标管理",
+      "description": "指标的导入、编辑、删除和查询"
+    },
+    {
+      "name": "标签管理",
+      "description": "标签的增删改查"
+    },
+    {
+      "name": "导出功能",
+      "description": "指标的预览和导出"
+    }
+  ],
+  "paths": {
+    "/datasources": {
+      "get": {
+        "tags": ["数据源管理"],
+        "summary": "获取数据源列表",
+        "description": "获取所有数据源，支持分页和搜索",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "description": "数据源名称（模糊搜索）",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "页码",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "每页数量",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功返回数据源列表页面"
+          },
+          "500": {
+            "description": "服务器错误"
+          }
+        }
+      }
+    },
+    "/datasources/test": {
+      "post": {
+        "tags": ["数据源管理"],
+        "summary": "测试数据源连接",
+        "description": "测试数据源配置是否可以成功连接Prometheus",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "url"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "数据源名称"
+                  },
+                  "url": {
+                    "type": "string",
+                    "description": "Prometheus URL"
+                  },
+                  "authType": {
+                    "type": "string",
+                    "enum": ["none", "basic", "bearer"],
+                    "default": "none",
+                    "description": "认证类型"
+                  },
+                  "username": {
+                    "type": "string",
+                    "description": "Basic认证用户名"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "Basic认证密码"
+                  },
+                  "headerKeys": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "自定义Header键列表"
+                  },
+                  "headerValues": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "自定义Header值列表"
+                  },
+                  "skipTlsVerify": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "是否跳过TLS验证"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "测试结果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "是否成功"
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "结果消息"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器错误"
+          }
+        }
+      }
+    },
+    "/datasources/test/{id}": {
+      "post": {
+        "tags": ["数据源管理"],
+        "summary": "测试已保存的数据源",
+        "description": "测试指定ID的数据源是否可以成功连接",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "数据源ID",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "测试结果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "数据源不存在"
+          },
+          "500": {
+            "description": "服务器错误"
+          }
+        }
+      }
+    },
+    "/datasources/add": {
+      "get": {
+        "tags": ["数据源管理"],
+        "summary": "显示添加数据源表单",
+        "description": "返回添加数据源的页面",
+        "responses": {
+          "200": {
+            "description": "添加数据源表单页面"
+          }
+        }
+      },
+      "post": {
+        "tags": ["数据源管理"],
+        "summary": "添加数据源",
+        "description": "创建新的数据源",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "url"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "数据源名称"
+                  },
+                  "url": {
+                    "type": "string",
+                    "description": "Prometheus URL"
+                  },
+                  "authType": {
+                    "type": "string",
+                    "enum": ["none", "basic", "bearer"],
+                    "default": "none"
+                  },
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "headerKeys": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "headerValues": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "skipTlsVerify": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "302": {
+            "description": "重定向到数据源列表"
+          },
+          "500": {
+            "description": "服务器错误"
+          }
+        }
+      }
+    },
+    "/datasources/edit/{id}": {
+      "get": {
+        "tags": ["数据源管理"],
+        "summary": "显示编辑数据源表单",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "编辑数据源表单页面"
+          },
+          "404": {
+            "description": "数据源不存在"
+          }
+        }
+      },
+      "post": {
+        "tags": ["数据源管理"],
+        "summary": "更新数据源",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "url"],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "authType": {
+                    "type": "string",
+                    "enum": ["none", "basic", "bearer"]
+                  },
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "headerKeys": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "headerValues": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "skipTlsVerify": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "302": {
+            "description": "重定向到数据源列表"
+          },
+          "404": {
+            "description": "数据源不存在"
+          },
+          "500": {
+            "description": "服务器错误"
+          }
+        }
+      }
+    },
+    "/datasources/delete/{id}": {
+      "get": {
+        "tags": ["数据源管理"],
+        "summary": "删除数据源",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "重定向到数据源列表"
+          },
+          "404": {
+            "description": "数据源不存在"
+          },
+          "500": {
+            "description": "服务器错误"
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "tags": ["指标管理"],
+        "summary": "获取指标列表",
+        "description": "获取所有指标，支持分页和搜索",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "description": "指标名称（模糊搜索）",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "collector",
+            "in": "query",
+            "description": "采集器（模糊搜索）",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "description": "责任人（模糊搜索）",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "页码",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "每页数量",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功返回指标列表页面"
+          },
+          "500": {
+            "description": "服务器错误"
+          }
+        }
+      }
+    },
+    "/metrics/import": {
+      "get": {
+        "tags": ["指标管理"],
+        "summary": "显示导入指标表单",
+        "responses": {
+          "200": {
+            "description": "导入指标表单页面"
+          }
+        }
+      },
+      "post": {
+        "tags": ["指标管理"],
+        "summary": "导入指标",
+        "description": "从Prometheus数据源导入指标及其标签",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["dataSourceId", "metricName"],
+                "properties": {
+                  "dataSourceId": {
+                    "type": "integer",
+                    "description": "数据源ID"
+                  },
+                  "metricName": {
+                    "type": "string",
+                    "description": "指标名称"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "导入成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "labelCount": {
+                      "type": "integer"
+                    },
+                    "redirectUrl": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数错误"
+          },
+          "404": {
+            "description": "数据源不存在"
+          },
+          "500": {
+            "description": "服务器错误"
+          }
+        }
+      }
+    },
+    "/metrics/datasource/{id}/metrics": {
+      "get": {
+        "tags": ["指标管理"],
+        "summary": "获取数据源的所有指标",
+        "description": "从指定数据源获取所有可用的指标名称",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "数据源ID",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "指标名称列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "数据源不存在"
+          },
+          "500": {
+            "description": "服务器错误"
+          }
+        }
+      }
+    },
+    "/metrics/add": {
+      "get": {
+        "tags": ["指标管理"],
+        "summary": "显示手动添加指标表单",
+        "responses": {
+          "200": {
+            "description": "添加指标表单页面"
+          }
+        }
+      },
+      "post": {
+        "tags": ["指标管理"],
+        "summary": "手动添加指标",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "指标名称"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "指标描述"
+                  },
+                  "collector": {
+                    "type": "string",
+                    "description": "采集器"
+                  },
+                  "owner": {
+                    "type": "string",
+                    "description": "责任人"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "302": {
+            "description": "重定向到编辑页面"
+          },
+          "500": {
+            "description": "服务器错误"
+          }
+        }
+      }
+    },
+    "/metrics/edit/{id}": {
+      "get": {
+        "tags": ["指标管理"],
+        "summary": "显示编辑指标表单",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "编辑指标表单页面"
+          },
+          "404": {
+            "description": "指标不存在"
+          }
+        }
+      },
+      "post": {
+        "tags": ["指标管理"],
+        "summary": "更新指标",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string"
+                  },
+                  "collector": {
+                    "type": "string"
+                  },
+                  "owner": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "302": {
+            "description": "重定向到指标列表"
+          },
+          "404": {
+            "description": "指标不存在"
+          },
+          "500": {
+            "description": "服务器错误"
+          }
+        }
+      }
+    },
+    "/metrics/delete/{id}": {
+      "get": {
+        "tags": ["指标管理"],
+        "summary": "删除指标",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "重定向到指标列表"
+          },
+          "404": {
+            "description": "指标不存在"
+          },
+          "500": {
+            "description": "服务器错误"
+          }
+        }
+      }
+    },
+    "/metrics/batch-delete": {
+      "post": {
+        "tags": ["指标管理"],
+        "summary": "批量删除指标",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["ids"],
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    },
+                    "description": "指标ID列表"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "删除成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数错误"
+          },
+          "500": {
+            "description": "服务器错误"
+          }
+        }
+      }
+    },
+    "/metrics/update-metric/{id}": {
+      "post": {
+        "tags": ["指标管理"],
+        "summary": "更新指标基本信息",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string"
+                  },
+                  "collector": {
+                    "type": "string"
+                  },
+                  "owner": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          },
+          "404": {
+            "description": "指标不存在"
+          },
+          "500": {
+            "description": "服务器错误"
+          }
+        }
+      }
+    },
+    "/metrics/add-label/{id}": {
+      "post": {
+        "tags": ["标签管理"],
+        "summary": "添加标签",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "指标ID",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "标签名称"
+                  },
+                  "valueType": {
+                    "type": "string",
+                    "description": "值类型"
+                  },
+                  "valueRange": {
+                    "type": "string",
+                    "description": "取值范围"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "描述"
+                  },
+                  "example": {
+                    "type": "string",
+                    "description": "示例"
+                  },
+                  "collectionNote": {
+                    "type": "string",
+                    "description": "采集说明"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "添加成功"
+          },
+          "404": {
+            "description": "指标不存在"
+          },
+          "500": {
+            "description": "服务器错误"
+          }
+        }
+      }
+    },
+    "/metrics/delete-label/{id}": {
+      "delete": {
+        "tags": ["标签管理"],
+        "summary": "删除标签",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "标签ID",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "删除成功"
+          },
+          "404": {
+            "description": "标签不存在"
+          },
+          "500": {
+            "description": "服务器错误"
+          }
+        }
+      }
+    },
+    "/metrics/recommend/{metricId}/{labelName}": {
+      "get": {
+        "tags": ["标签管理"],
+        "summary": "获取标签值推荐",
+        "description": "根据已录入的数据推荐标签值",
+        "parameters": [
+          {
+            "name": "metricId",
+            "in": "path",
+            "required": true,
+            "description": "指标ID",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "labelName",
+            "in": "path",
+            "required": true,
+            "description": "标签名称",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "推荐值列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器错误"
+          }
+        }
+      }
+    },
+    "/metrics/preview/{id}": {
+      "get": {
+        "tags": ["导出功能"],
+        "summary": "预览指标",
+        "description": "在浏览器中预览指标信息",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "预览页面"
+          },
+          "404": {
+            "description": "指标不存在"
+          }
+        }
+      }
+    },
+    "/metrics/export/{id}": {
+      "get": {
+        "tags": ["导出功能"],
+        "summary": "导出指标为Markdown",
+        "description": "将指标信息导出为Markdown文件",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Markdown文件",
+            "content": {
+              "text/markdown": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "指标不存在"
+          }
+        }
+      }
+    },
+    "/metrics/batch-preview": {
+      "get": {
+        "tags": ["导出功能"],
+        "summary": "批量预览指标",
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "required": true,
+            "description": "指标ID列表，逗号分隔",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "批量预览页面"
+          },
+          "400": {
+            "description": "参数错误"
+          }
+        }
+      }
+    },
+    "/metrics/batch-export": {
+      "get": {
+        "tags": ["导出功能"],
+        "summary": "批量导出指标为Markdown",
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "required": true,
+            "description": "指标ID列表，逗号分隔",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Markdown文件",
+            "content": {
+              "text/markdown": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数错误"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "DataSource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "auth_type": {
+            "type": "string",
+            "enum": ["none", "basic", "bearer"]
+          },
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "headers": {
+            "type": "string"
+          },
+          "skip_tls_verify": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        }
+      },
+      "Metric": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "collector": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        }
+      },
+      "Label": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "metric_id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "value_type": {
+            "type": "string"
+          },
+          "value_range": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "example": {
+            "type": "string"
+          },
+          "collection_note": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

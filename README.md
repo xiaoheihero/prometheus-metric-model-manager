@@ -241,6 +241,15 @@ prometheus_metric_model_manager/
 
 ## API接口
 
+### API文档
+
+应用提供了完整的Swagger API文档：
+
+- **Swagger UI**: http://localhost:3000/api-docs
+- **Swagger JSON**: http://localhost:3000/swagger.json
+
+通过Swagger UI可以查看所有API接口的详细信息，包括参数、响应格式等，并支持在线测试。
+
 ### 数据源
 
 - `GET /datasources` - 获取数据源列表（支持分页和搜索）
